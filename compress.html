@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Compressor GUI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .log-entry {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .progress-bar-fill {
+            transition: width 0.3s ease-in-out;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6 border border-gray-700">
+        
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-white">Video Compression Dashboard</h1>
+            <p class="text-gray-400 mt-1">Batch compress .dav files to .mp4 using ffmpeg</p>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Directory Settings -->
+            <div class="bg-gray-700/50 p-5 rounded-xl space-y-4">
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2">Directories</h2>
+                <div>
+                    <label for="sourceDir" class="block text-sm font-medium text-gray-300 mb-1">Source (NAS)</label>
+                    <input type="text" id="sourceDir" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="/Volumes/DSS/recordings">
+                </div>
+                <div>
+                    <label for="destDir" class="block text-sm font-medium text-gray-300 mb-1">Destination (NAS)</label>
+                    <input type="text" id="destDir" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="/Volumes/DSS/compressed">
+                </div>
+                <div>
+                    <label for="localTmp" class="block text-sm font-medium text-gray-300 mb-1">Local Temp Folder</label>
+                    <input type="text" id="localTmp" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="/Users/apple/Downloads/temp">
+                </div>
+            </div>
+
+            <!-- Target Settings -->
+            <div class="bg-gray-700/50 p-5 rounded-xl space-y-4">
+                <h2 class="text-lg font-semibold text-white border-b border-gray-600 pb-2">Compression Target</h2>
+                <div class="flex items-center space-x-4">
+                    <div class="flex-1">
+                        <label for="targetMin" class="block text-sm font-medium text-gray-300 mb-1">Min Size (MB)</label>
+                        <input type="number" id="targetMin" value="100" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex-1">
+                        <label for="targetMax" class="block text-sm font-medium text-gray-300 mb-1">Max Size (MB)</label>
+                        <input type="number" id="targetMax" value="150" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                 <div class="pt-2">
+                    <p class="text-xs text-gray-400">The script will try to keep the compressed file size within this range.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center space-x-4 pt-4">
+            <button id="startButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                Start Processing
+            </button>
+            <button id="stopButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Stop
+            </button>
+        </div>
+
+        <!-- Progress & Logging -->
+        <div class="space-y-4 pt-4">
+            <!-- Overall Progress -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-white">Overall Progress</span>
+                    <span id="overallProgressText" class="text-sm text-gray-400">0 / 0 Files</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="overallProgressBar" class="bg-blue-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Current File Progress -->
+            <div>
+                 <div class="flex justify-between items-center mb-1">
+                    <span id="currentFileText" class="text-sm font-medium text-white truncate">Current File: (idle)</span>
+                    <span id="currentProgressText" class="text-sm text-gray-400">0%</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="currentProgressBar" class="bg-green-500 h-2.5 rounded-full progress-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Log Output -->
+            <div>
+                <h3 class="text-md font-semibold text-white mb-2">Log Output</h3>
+                <div id="logOutput" class="h-64 bg-gray-900/70 rounded-xl p-4 text-sm font-mono border border-gray-700 overflow-y-auto">
+                    <div class="text-gray-500">Waiting to start...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Disclaimer -->
+        <div class="text-center text-xs text-gray-500 pt-4">
+            <p><strong>Note:</strong> This is a front-end interface. A backend service is required to execute the actual `ffmpeg` commands on your system.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const logOutput = document.getElementById('logOutput');
+        
+        const overallProgressBar = document.getElementById('overallProgressBar');
+        const overallProgressText = document.getElementById('overallProgressText');
+        
+        const currentProgressBar = document.getElementById('currentProgressBar');
+        const currentProgressText = document.getElementById('currentProgressText');
+        const currentFileText = document.getElementById('currentFileText');
+
+        const inputs = document.querySelectorAll('input');
+
+        // --- State Management ---
+        let isProcessing = false;
+        let stopFlag = false;
+        
+        // --- Helper Functions ---
+        
+        /**
+         * Appends a message to the log output.
+         * @param {string} message - The message to log.
+         * @param {string} type - 'info', 'success', 'error', 'warning', 'cmd'.
+         */
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            let colorClass = 'text-gray-400';
+            let prefix = 'INFO';
+            switch (type) {
+                case 'success':
+                    colorClass = 'text-green-400';
+                    prefix = '✅';
+                    break;
+                case 'error':
+                    colorClass = 'text-red-400';
+                    prefix = '❌';
+                    break;
+                case 'warning':
+                    colorClass = 'text-yellow-400';
+                    prefix = '⚠️';
+                    break;
+                case 'cmd':
+                    colorClass = 'text-blue-400';
+                    prefix = '▶️';
+                    break;
+            }
+            entry.innerHTML = `<span class="${colorClass} mr-2">${prefix}</span> ${message}`;
+            logOutput.appendChild(entry);
+            logOutput.scrollTop = logOutput.scrollHeight; // Auto-scroll
+        }
+
+        /**
+         * Simulates a delay.
+         * @param {number} ms - Milliseconds to wait.
+         */
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        /**
+         * Toggles the UI state between processing and idle.
+         * @param {boolean} processing - Whether processing is active.
+         */
+        function setUiState(processing) {
+            isProcessing = processing;
+            startButton.disabled = processing;
+            stopButton.disabled = !processing;
+            inputs.forEach(input => input.disabled = processing);
+            startButton.classList.toggle('opacity-50', processing);
+            startButton.classList.toggle('cursor-not-allowed', processing);
+        }
+
+        /**
+         * Simulates the ffmpeg encoding process with progress updates.
+         * @param {number} duration - Simulated duration of the video in seconds.
+         * @returns {Promise<number>} - A promise that resolves with the simulated output size.
+         */
+        async function simulateEncoding(duration, attempt) {
+            log(`Encoding with VBV ${2000 * attempt}...`, 'cmd');
+            let progress = 0;
+            while (progress <= 100) {
+                if (stopFlag) throw new Error('Process stopped by user');
+                
+                currentProgressBar.style.width = `${progress}%`;
+                currentProgressText.innerText = `${progress}%`;
+                
+                // Simulate random ffmpeg stats
+                const frame = Math.floor(progress * 30 * duration / 100);
+                const fps = (Math.random() * 10 + 250).toFixed(2);
+                const size = `${Math.floor(progress * 1.2 * duration / 10)}kB`;
+                const bitrate = `${(Math.random() * 500 + 1500).toFixed(2)}kbit/s`;
+                currentFileText.innerText = `Encoding... | Frame: ${frame} | FPS: ${fps} | Size: ${size}`;
+
+                await sleep(50); // Update interval
+                progress++;
+            }
+            // Simulate output size based on attempt
+            return 180 - (attempt * 35) + (Math.random() * 20 - 10);
+        }
+
+
+        // --- Main Logic ---
+
+        async function startProcessing() {
+            stopFlag = false;
+            setUiState(true);
+            logOutput.innerHTML = '';
+            log('Starting process...');
+
+            // --- This is a simulation. In a real app, you would get this list from the backend. ---
+            const mockFiles = Array.from({ length: 15 }, (_, i) => `CAM01_202503061${i.toString().padStart(2, '0')}000.dav`);
+            const totalFiles = mockFiles.length;
+            overallProgressText.innerText = `0 / ${totalFiles} Files`;
+
+            for (let i = 0; i < totalFiles; i++) {
+                if (stopFlag) {
+                    log('Processing stopped by user.', 'warning');
+                    break;
+                }
+                
+                const file = mockFiles[i];
+                const basename = file.replace('.dav', '');
+                log(`────────────────────────────────────────────`);
+                log(`🔁 Memproses (${i + 1}/${totalFiles}): ${basename}`);
+                
+                currentFileText.innerText = `Current File: ${file}`;
+                currentProgressBar.style.width = '0%';
+                currentProgressText.innerText = '0%';
+                
+                const inputSize = Math.floor(Math.random() * 100 + 180); // 180-280MB
+                const duration = Math.floor(Math.random() * 1800 + 1800); // 30-60 mins
+                log(`📋 Input: ${inputSize}MB, ${duration}s`);
+                
+                try {
+                    let outputSize = 0;
+                    let finalSize = 0;
+                    let success = false;
+                    
+                    // Attempt 1
+                    outputSize = await simulateEncoding(duration, 1);
+                    log(`📦 Output (Attempt 1): ${outputSize.toFixed(2)}MB`);
+
+                    // Attempt 2 if needed
+                    if (outputSize > document.getElementById('targetMax').value) {
+                         log(`Masih terlalu besar, mencoba VBV 3000...`, 'warning');
+                         await sleep(500);
+                         outputSize = await simulateEncoding(duration, 2);
+                         log(`📦 Output (Attempt 2): ${outputSize.toFixed(2)}MB`);
+                    }
+
+                    // Attempt 3 if needed
+                    if (outputSize > document.getElementById('targetMax').value) {
+                         log(`Masih terlalu besar, mencoba VBV 4000...`, 'warning');
+                         await sleep(500);
+                         outputSize = await simulateEncoding(duration, 3);
+                         log(`📦 Output (Attempt 3): ${outputSize.toFixed(2)}MB`);
+                    }
+
+                    finalSize = outputSize;
+                    success = true;
+
+                    if (success) {
+                        log(`📤 Menyalin ke NAS...`);
+                        await sleep(1000); // Simulate copy
+                        log(`Berhasil disimpan ke NAS: ${basename}_compressed.mp4`, 'success');
+                        
+                        const ratio = 100 - (finalSize * 100 / inputSize);
+                        log(`📊 Penghematan: ${ratio.toFixed(0)}% (${inputSize}MB → ${finalSize.toFixed(2)}MB)`);
+                    }
+
+                } catch (error) {
+                    if (stopFlag) break; // Exit loop if stopped
+                    log(`Failed to process ${file}: ${error.message}`, 'error');
+                } finally {
+                    // Update overall progress regardless of success/failure
+                    const progressPercentage = ((i + 1) / totalFiles) * 100;
+                    overallProgressBar.style.width = `${progressPercentage}%`;
+                    overallProgressText.innerText = `${i + 1} / ${totalFiles} Files`;
+                }
+            }
+            
+            if (!stopFlag) {
+                log(`────────────────────────────────────────────`);
+                log('🎉 Testing selesai!', 'success');
+            }
+            
+            setUiState(false);
+            currentFileText.innerText = 'Current File: (idle)';
+        }
+
+        function stopProcessing() {
+            if (isProcessing) {
+                stopFlag = true;
+                log('Stop signal sent. Finishing current file...', 'warning');
+            }
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', startProcessing);
+        stopButton.addEventListener('click', stopProcessing);
+    </script>
+</body>
+</html>

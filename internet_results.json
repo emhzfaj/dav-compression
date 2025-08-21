@@ -1,0 +1,51 @@
+{
+  "timestamp": "2025-08-09 17:02:18",
+  "private_ip": "192.168.0.102",
+  "internet": null,
+  "networkQuality": {
+    "download_mbps": 43.055,
+    "upload_mbps": 11.221,
+    "responsiveness_rtt_ms": 0.0
+  },
+  "wifi": null,
+  "ping": [
+    {
+      "host": "192.168.0.1",
+      "loss_pct": 0.0,
+      "rtt_ms": {
+        "min": 4.75,
+        "avg": 9.46,
+        "max": 45.86,
+        "stddev": 9.96
+      }
+    },
+    {
+      "host": "8.8.8.8",
+      "loss_pct": 0.0,
+      "rtt_ms": {
+        "min": 95.86,
+        "avg": 115.16,
+        "max": 148.83,
+        "stddev": 14.18
+      }
+    },
+    {
+      "host": "1.1.1.1",
+      "loss_pct": 0.0,
+      "rtt_ms": {
+        "min": 40.29,
+        "avg": 56.89,
+        "max": 78.64,
+        "stddev": 8.06
+      }
+    }
+  ],
+  "thresholds": {
+    "min_down": 50,
+    "min_up": 10,
+    "max_ping": 50,
+    "max_jitter": 15,
+    "max_loss": 1
+  },
+  "tag": "diagnose"
+}
